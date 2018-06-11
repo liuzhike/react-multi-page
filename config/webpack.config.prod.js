@@ -56,7 +56,10 @@ module.exports = {
   // You can exclude the *.map files from the build during deployment.
   devtool: shouldUseSourceMap ? 'source-map' : false,
   // In production, we only want to load the polyfills and the app code.
-  entry: [require.resolve('./polyfills'), paths.appIndexJs],
+  entry: {
+    index1:[require.resolve('./polyfills'), paths.appIndexJs],
+    index2:[require.resolve('./polyfills'), paths.appIndex2Js]
+  },
   output: {
     // The build folder.
     path: paths.appBuild,
@@ -243,7 +246,27 @@ module.exports = {
     // Generates an `index.html` file with the <script> injected.
     new HtmlWebpackPlugin({
       inject: true,
+      chunks: ["index1"],
+      filename: 'index.html',
       template: paths.appHtml,
+      minify: {
+        removeComments: true,
+        collapseWhitespace: true,
+        removeRedundantAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeStyleLinkTypeAttributes: true,
+        keepClosingSlash: true,
+        minifyJS: true,
+        minifyCSS: true,
+        minifyURLs: true,
+      },
+    }),
+    new HtmlWebpackPlugin({
+      inject: true,
+      chunks: ["index2"],
+      filename: 'index2.html',
+      template: paths.appHtml2,
       minify: {
         removeComments: true,
         collapseWhitespace: true,
@@ -317,6 +340,34 @@ module.exports = {
       minify: true,
       // For unknown URLs, fallback to the index page
       navigateFallback: publicUrl + '/index.html',
+      // Ignores URLs starting from /__ (useful for Firebase):
+      // https://github.com/facebookincubator/create-react-app/issues/2237#issuecomment-302693219
+      navigateFallbackWhitelist: [/^(?!\/__).*/],
+      // Don't precache sourcemaps (they're large) and build asset manifest:
+      staticFileGlobsIgnorePatterns: [/\.map$/, /asset-manifest\.json$/],
+    }),
+    new SWPrecacheWebpackPlugin({
+      // By default, a cache-busting query parameter is appended to requests
+      // used to populate the caches, to ensure the responses are fresh.
+      // If a URL is already hashed by Webpack, then there is no concern
+      // about it being stale, and the cache-busting can be skipped.
+      dontCacheBustUrlsMatching: /\.\w{8}\./,
+      filename: 'service-worker.js',
+      logger(message) {
+        if (message.indexOf('Total precache size is') === 0) {
+          // This message occurs for every build and is a bit too noisy.
+          return;
+        }
+        if (message.indexOf('Skipping static resource') === 0) {
+          // This message obscures real errors so we ignore it.
+          // https://github.com/facebookincubator/create-react-app/issues/2612
+          return;
+        }
+        console.log(message);
+      },
+      minify: true,
+      // For unknown URLs, fallback to the index page
+      navigateFallback: publicUrl + '/index2.html',
       // Ignores URLs starting from /__ (useful for Firebase):
       // https://github.com/facebookincubator/create-react-app/issues/2237#issuecomment-302693219
       navigateFallbackWhitelist: [/^(?!\/__).*/],
